@@ -1,0 +1,4 @@
+ua-parser
+pyyaml
+pyelasticsearch
+docopt

@@ -1,0 +1,7 @@
+.Python
+bin
+data
+include
+lib
+regexes.yaml
+*.pyc
