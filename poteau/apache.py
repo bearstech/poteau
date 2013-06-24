@@ -35,9 +35,18 @@ def intOrZero(a):
     return int(a)
 
 
+def unescape(txt):
+    if txt is None:
+        return None
+    return "_".join(txt.split(" "))
+
+
 def combined(reader):
     for line in reader:
         m = RE_COMBINED.match(line)
+        ua = user_agent_parser.Parse(m.group(10))
+        ua['os']['family'] = unescape(ua['os']['family'])
+        ua['device']['family'] = unescape(ua['device']['family'])
         if m is not None:
             yield {
                 'ip': m.group(1),
@@ -49,11 +58,41 @@ def combined(reader):
                 'code': int(m.group(7)),
                 'size': intOrZero(m.group(8)),
                 'referer': m.group(9),
-                'user-agent': user_agent_parser.Parse(m.group(10))
+                'user-agent': ua
             }
 
 
+def documents_from_combined(logs):
+    for log in logs:
+        yield {
+                '@source': 'stuff://',
+                '@type': 'combined',
+                '@tags': [],
+                '@fields': log,
+                '@timestamp': log['date'],
+                '@source_host': 'localhost',
+                '@source_path': 'stdin',
+                '@message': ''
+                }
+
 if __name__ == "__main__":
     import sys
-    for line in combined(sys.stdin):
-        print line
+
+    from pyelasticsearch import ElasticSearch
+    from pyelasticsearch.exceptions import ElasticHttpNotFoundError
+
+    from __init__ import bulk_iterate
+
+    # Instantiate it with an url
+    es = ElasticSearch(sys.argv[1])
+    # Kibana need this kind of name
+    NAME = 'logstash-2013.06.13'
+    try:
+        es.delete_index(NAME)
+    except ElasticHttpNotFoundError:
+        pass  # Nobody cares
+    logs = combined(sys.stdin)
+    for n, docs in enumerate(bulk_iterate(documents_from_combined(logs), 100)):
+        es.bulk_index(NAME, 'combined', docs)
+        print(n)
+    print es.refresh(NAME)
