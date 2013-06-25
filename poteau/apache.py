@@ -75,24 +75,48 @@ def documents_from_combined(logs):
                 '@message': ''
                 }
 
+
+class Kibana(object):
+    def __init__(self, es):
+        self.es = es
+
+    def index_documents(self, type_, documents):
+        current = None
+        stack = []
+
+        def bulk(current, type_, stack):
+            if len(stack):
+                self.es.bulk_index('logstash-%s' % current.replace('-', '.'),
+                                   type_, stack)
+                return current
+
+        for document in documents:
+            day = document['@timestamp'].split('T')[0]
+            if current is None:
+                current = day
+            if current != day:
+                yield bulk(current, type_, stack)
+                stack = [document]
+                current = day
+            else:
+                stack.append(document)
+            if len(stack) >= 300:
+                yield bulk(current, type_, stack)
+                stack = []
+
+        yield bulk(current, type_, stack)
+
+
 if __name__ == "__main__":
     import sys
 
     from pyelasticsearch import ElasticSearch
     from pyelasticsearch.exceptions import ElasticHttpNotFoundError
 
-    from __init__ import bulk_iterate
-
     # Instantiate it with an url
     es = ElasticSearch(sys.argv[1])
     # Kibana need this kind of name
-    NAME = 'logstash-2013.06.13'
-    try:
-        es.delete_index(NAME)
-    except ElasticHttpNotFoundError:
-        pass  # Nobody cares
+    k = Kibana(es)
     logs = combined(sys.stdin)
-    for n, docs in enumerate(bulk_iterate(documents_from_combined(logs), 100)):
-        es.bulk_index(NAME, 'combined', docs)
+    for n in k.index_documents('combined', documents_from_combined(logs)):
         print(n)
-    print es.refresh(NAME)
