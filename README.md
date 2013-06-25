@@ -3,6 +3,8 @@ Poteau
 
 Send log to kibana.
 
+"[Poteau](https://fr.wiktionary.org/wiki/poteau)" /pɔ.to/ means "pole" in french.
+
 Install
 -------
 
