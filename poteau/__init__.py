@@ -8,3 +8,34 @@ def bulk_iterate(collection, bulk_size):
             stack = []
     if len(stack) > 0:
         yield stack
+
+
+class Kibana(object):
+    def __init__(self, es):
+        self.es = es
+
+    def index_documents(self, type_, documents):
+        current = None
+        stack = []
+
+        def bulk(current, type_, stack):
+            if len(stack):
+                self.es.bulk_index('logstash-%s' % current.replace('-', '.'),
+                                   type_, stack)
+                return current
+
+        for document in documents:
+            day = document['@timestamp'].split('T')[0]
+            if current is None:
+                current = day
+            if current != day:
+                yield bulk(current, type_, stack)
+                stack = [document]
+                current = day
+            else:
+                stack.append(document)
+            if len(stack) >= 300:
+                yield bulk(current, type_, stack)
+                stack = []
+
+        yield bulk(current, type_, stack)
