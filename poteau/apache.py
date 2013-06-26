@@ -12,6 +12,7 @@ RE_COMMON = re.compile(r'(.*?) - (.*?) \[(.*?) [+-]\d{4}\] "(.*?) (.*?) (.*?)" (
 RE_COMBINED = re.compile(r'(.*?) - (.*?) \[(.*?) [+-]\d{4}\] "(.*?) (.*?) (.*?)" (\d{3}) (.*?) "([^"]*)" "([^"]*)"', re.U)
 RE_DATE = re.compile(r'(\d+)/(\w{3})/(\d+):(\d+:\d+:\d+)', re.U)
 
+
 def parse_date(src):
     """
 10/Oct/2000:13:55:36
@@ -25,7 +26,7 @@ def parse_date(src):
         'month': MONTH.index(m.group(2)) + 1,
         'day': int(m.group(1)),
         'hms': m.group(4)
-        }
+    }
     return resp
 
 
@@ -58,22 +59,21 @@ def combined(reader):
                 'code': int(m.group(7)),
                 'size': intOrZero(m.group(8)),
                 'referer': m.group(9),
-                'user-agent': ua
+                'user-agent': ua,
+                'raw': line
             }
 
 
 def documents_from_combined(logs):
     for log in logs:
         yield {
-                '@source': 'stuff://',
-                '@type': 'combined',
-                '@tags': [],
-                '@fields': log,
-                '@timestamp': log['date'],
-                '@source_host': 'localhost',
-                '@source_path': 'stdin',
-                '@message': ''
-                }
+            '@source': 'stuff://',
+            '@type': 'combined',
+            '@tags': [],
+            '@fields': log,
+            '@timestamp': log['date'],
+            '@message': log['raw']
+        }
 
 
 if __name__ == "__main__":
