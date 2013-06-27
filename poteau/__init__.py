@@ -15,6 +15,9 @@ class Kibana(object):
         self.es = es
 
     def index_documents(self, type_, documents):
+        """
+https://github.com/logstash/logstash/wiki/logstash%27s-internal-message-format
+        """
         current = None
         stack = []
 
