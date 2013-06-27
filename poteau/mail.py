@@ -62,7 +62,7 @@ if __name__ == '__main__':
     import sys
     from __init__ import Kibana
     # Instantiate it with an url
-    es = ElasticSearch(sys.argv[1])
+    es = ElasticSearch(sys.argv[1], timeout=120, max_retries=10)
     k = Kibana(es)
     # Kibana need this kind of name
     emails = mbox(sys.argv[2])
