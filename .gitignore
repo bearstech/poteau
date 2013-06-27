@@ -3,5 +3,7 @@ bin
 data
 include
 lib
+man
+share
 regexes.yaml
 *.pyc
