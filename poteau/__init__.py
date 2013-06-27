@@ -25,7 +25,7 @@ https://github.com/logstash/logstash/wiki/logstash%27s-internal-message-format
             if len(stack):
                 self.es.bulk_index('logstash-%s' % current.replace('-', '.'),
                                    type_, stack)
-                return current
+                return current, len(stack)
 
         for document in documents:
             day = document['@timestamp'].split('T')[0]
@@ -37,7 +37,7 @@ https://github.com/logstash/logstash/wiki/logstash%27s-internal-message-format
                 current = day
             else:
                 stack.append(document)
-            if len(stack) >= 300:
+            if len(stack) >= 100:
                 yield bulk(current, type_, stack)
                 stack = []
 
