@@ -1,4 +1,5 @@
-ua-parser
 pyyaml
+ua-parser
+lamson
 pyelasticsearch
 docopt
