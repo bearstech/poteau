@@ -23,8 +23,9 @@ https://github.com/logstash/logstash/wiki/logstash%27s-internal-message-format
 
         def bulk(current, type_, stack):
             if len(stack):
-                self.es.bulk_index('logstash-%s' % current.replace('-', '.'),
-                                   type_, stack)
+                idx = 'logstash-%s' % current.replace('-', '.')
+                self.es.bulk_index(idx, type_, stack)
+                #self.es.flush(idx)
                 return current, len(stack)
 
         for document in documents:
@@ -37,7 +38,7 @@ https://github.com/logstash/logstash/wiki/logstash%27s-internal-message-format
                 current = day
             else:
                 stack.append(document)
-            if len(stack) >= 100:
+            if len(stack) >= 300:
                 yield bulk(current, type_, stack)
                 stack = []
 
