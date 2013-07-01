@@ -5,5 +5,7 @@ include
 lib
 man
 share
+build
+poteau.egg-info
 regexes.yaml
 *.pyc
