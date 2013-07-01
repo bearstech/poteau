@@ -26,7 +26,13 @@ Test
 
 You need an Elasticsearch and a Kibana, somewhere.
 
+### Apache
+
     zcat toto.log.gz | ./poteau/apache.py http://localhost:9200/
+
+### Mail
+
+    python -m poteau.mail http://localhost:9200/ /path/to/some/mbox
 
 Licence
 -------
