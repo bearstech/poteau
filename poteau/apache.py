@@ -76,17 +76,3 @@ def documents_from_combined(logs):
         }
 
 
-if __name__ == "__main__":
-    import sys
-
-    from pyelasticsearch import ElasticSearch
-
-    from __init__ import Kibana
-
-    # Instantiate it with an url
-    es = ElasticSearch(sys.argv[1])
-    # Kibana need this kind of name
-    k = Kibana(es)
-    logs = combined(sys.stdin)
-    for n in k.index_documents('combined', documents_from_combined(logs)):
-        print(n)
