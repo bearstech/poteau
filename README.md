@@ -27,9 +27,9 @@ Test
 
 You need an Elasticsearch and a Kibana, somewhere.
 
-### Apache
+### Web
 
-    zcat toto.log.gz | ./poteau/apache.py http://localhost:9200/
+    zcat toto.log.gz | poteau-web http://localhost:9200/
 
 ### Mail
 

@@ -10,7 +10,7 @@ Usage:
 from pyelasticsearch import ElasticSearch
 
 from poteau import Kibana
-from poteau.apache import combined, documents_from_combined
+from poteau.web import combined, documents_from_combined
 
 
 if __name__ == "__main__":
