@@ -8,4 +8,5 @@ share
 build
 poteau.egg-info
 regexes.yaml
+GeoLiteCity.dat
 *.pyc

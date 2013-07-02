@@ -3,3 +3,4 @@ ua-parser
 lamson
 pyelasticsearch
 docopt
+pygeoip

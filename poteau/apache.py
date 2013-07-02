@@ -7,6 +7,8 @@ os.environ["UA_PARSER_YAML"] = "./regexes.yaml"
 
 from ua_parser import user_agent_parser
 
+import pygeoip
+
 
 RE_COMMON = re.compile(r'(.*?) - (.*?) \[(.*?) [+-]\d{4}\] "(.*?) (.*?) (.*?)" (\d{3}) (\d+)', re.U)
 RE_COMBINED = re.compile(r'(.*?) - (.*?) \[(.*?) [+-]\d{4}\] "(.*?) (.*?) (.*?)" (\d{3}) (.*?) "([^"]*)" "([^"]*)"', re.U)
@@ -29,6 +31,13 @@ def parse_date(src):
     }
     return resp
 
+GEOIP = None
+
+def geo_ip(ip):
+    global GEOIP
+    if GEOIP is None:
+        GEOIP = pygeoip.GeoIP('GeoLiteCity.dat')
+    return GEOIP.record_by_addr(ip)
 
 def intOrZero(a):
     if a == '-':
@@ -49,6 +58,7 @@ def combined(reader):
         ua['os']['family'] = unescape(ua['os']['family'])
         ua['device']['family'] = unescape(ua['device']['family'])
         if m is not None:
+            geo = geo_ip(m.group(1))
             yield {
                 'ip': m.group(1),
                 'user': m.group(2),
@@ -60,7 +70,11 @@ def combined(reader):
                 'size': intOrZero(m.group(8)),
                 'referer': m.group(9),
                 'user-agent': ua,
-                'raw': line
+                'raw': line,
+                'country_name': unescape(geo['country_name']),
+                'country_code': geo['country_code'],
+                'city': geo['city'],
+                'geo': [geo['latitude'], geo['longitude']]
             }
 
 

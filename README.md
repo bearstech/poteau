@@ -20,6 +20,7 @@ Poteau is a simple and hackable Python tool.
 
     pip install -r requirements.txt
     wget https://github.com/tobie/ua-parser/raw/master/regexes.yaml
+    wget http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz
 
 Test
 ----

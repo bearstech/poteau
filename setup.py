@@ -11,6 +11,7 @@ setup(name='poteau',
                 'ua-parser',
                 'lamson',
                 'pyelasticsearch',
+                'pygeoip',
                 'docopt >=0.6'
                 ]
       )
