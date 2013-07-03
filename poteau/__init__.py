@@ -1,3 +1,6 @@
+from pyelasticsearch.exceptions import ElasticHttpNotFoundError
+
+
 def bulk_iterate(collection, bulk_size):
     """Agnostic way for bulk iteration"""
     stack = []
@@ -33,6 +36,10 @@ https://github.com/logstash/logstash/wiki/logstash%27s-internal-message-format
             if current is None:
                 current = day
             if current != day:
+                try:
+                    self.es.close_index(current)
+                except ElasticHttpNotFoundError:
+                    pass
                 yield bulk(current, type_, stack)
                 stack = [document]
                 current = day
