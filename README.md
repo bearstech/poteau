@@ -35,6 +35,10 @@ You need an Elasticsearch and a Kibana, somewhere.
 
     python -m poteau.mail http://localhost:9200/ /path/to/some/mbox
 
+### Mysql slow log
+
+    cat mysql-slow.log | python -m poteau.mysql http://localhost:9200/
+
 Licence
 -------
 
