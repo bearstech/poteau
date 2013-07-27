@@ -36,11 +36,13 @@ def parse_date(src):
 
 GEOIP = None
 
+
 def geo_ip(ip):
     global GEOIP
     if GEOIP is None:
         GEOIP = pygeoip.GeoIP('GeoLiteCity.dat')
     return GEOIP.record_by_addr(ip)
+
 
 def intOrZero(a):
     if a == '-':
@@ -54,21 +56,11 @@ def unescape(txt):
     return "_".join(txt.split(" "))
 
 
-def combined(reader):
+def combined(reader, user_agent=True, geo_ip=True):
     for line in reader:
         m = RE_COMBINED.match(line)
-        ua = user_agent_parser.Parse(m.group(10))
-        ua['os']['family'] = unescape(ua['os']['family'])
-        ua['device']['family'] = unescape(ua['device']['family'])
         if m is not None:
-            geo = geo_ip(m.group(1))
-            ref = urlparse(m.group(9))
-            query = None
-            if ref.query:
-                qq = parse_qs(ref.query)
-                if 'q' in qq:
-                    query = qq['q'][0]
-            yield {
+            log = {
                 'ip': m.group(1),
                 'user': m.group(2),
                 'date': parse_date(m.group(3)),
@@ -78,15 +70,28 @@ def combined(reader):
                 'code': int(m.group(7)),
                 'size': intOrZero(m.group(8)),
                 'referer': m.group(9),
-                'referer_domain': ref.netloc,
-                'query': query,
-                'user-agent': ua,
                 'raw': line,
-                'country_name': unescape(geo['country_name']),
-                'country_code': geo['country_code'],
-                'city': geo['city'],
-                'geo': [geo['latitude'], geo['longitude']]
             }
+            if user_agent:
+                ua = user_agent_parser.Parse(m.group(10))
+                ua['os']['family'] = unescape(ua['os']['family'])
+                ua['device']['family'] = unescape(ua['device']['family'])
+                log['user-agent'] = ua,
+            if geo_ip:
+                geo = geo_ip(m.group(1))
+                log['country_name'] = unescape(geo['country_name']),
+                log['country_code'] = geo['country_code'],
+                log['city'] = geo['city'],
+                log['geo'] = [geo['latitude'], geo['longitude']]
+            ref = urlparse(m.group(9))
+            log['referer_domain'] = ref.netloc
+            query = None
+            if ref.query:
+                qq = parse_qs(ref.query)
+                if 'q' in qq:
+                    query = qq['q'][0]
+            log['query'] = query
+            yield log
 
 
 def documents_from_combined(logs):
