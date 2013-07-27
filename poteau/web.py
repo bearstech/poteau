@@ -106,8 +106,19 @@ def documents_from_combined(logs):
         }
 
 
+def sessions(logs):
+    sessions = {}
+    for log in logs:
+        ip = "%s %s" % (log['ip'], log['user-agent'][0]['string'])
+        if ip not in sessions:
+            sessions[ip] = 0
+        sessions[ip] += 1
+    sessions = sessions.items()
+    sessions.sort(lambda a, b: cmp(a[1], b[1]))
+    return sessions
+
 if __name__ == "__main__":
     import sys
     with open(sys.argv[1], 'r') as f:
-        for line in combined(f):
-            print line
+        sessions = sessions(combined(f, user_agent=True, geo_ip=False))
+        print sessions
