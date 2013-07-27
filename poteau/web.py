@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
+# TODO domain referer
+# TODO search engine query from referer
 import re
 import os
+from urlparse import urlparse, parse_qs
 
 os.environ["UA_PARSER_YAML"] = "./regexes.yaml"
 
@@ -59,6 +62,13 @@ def combined(reader):
         ua['device']['family'] = unescape(ua['device']['family'])
         if m is not None:
             geo = geo_ip(m.group(1))
+            ref = urlparse(m.group(9))
+            query = None
+            if ref.query:
+                qq = parse_qs(ref.query)
+                if 'q' in qq:
+                    query = qq['q'][0]
+                    print query
             yield {
                 'ip': m.group(1),
                 'user': m.group(2),
@@ -69,6 +79,8 @@ def combined(reader):
                 'code': int(m.group(7)),
                 'size': intOrZero(m.group(8)),
                 'referer': m.group(9),
+                'referer_domain': ref.netloc,
+                'query': query,
                 'user-agent': ua,
                 'raw': line,
                 'country_name': unescape(geo['country_name']),
@@ -88,5 +100,3 @@ def documents_from_combined(logs):
             '@timestamp': log['date'],
             '@message': log['raw']
         }
-
-
