@@ -68,7 +68,6 @@ def combined(reader):
                 qq = parse_qs(ref.query)
                 if 'q' in qq:
                     query = qq['q'][0]
-                    print query
             yield {
                 'ip': m.group(1),
                 'user': m.group(2),
@@ -100,3 +99,10 @@ def documents_from_combined(logs):
             '@timestamp': log['date'],
             '@message': log['raw']
         }
+
+
+if __name__ == "__main__":
+    import sys
+    with open(sys.argv[1], 'r') as f:
+        for line in combined(f):
+            print line
