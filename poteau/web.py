@@ -138,23 +138,27 @@ class Session(object):
         return self.length
 
 
-def sessions(logs):
+def filter_session(s, minima):
+    for k, v in s:
+        v.filter(minima)
+        if len(v.ts):
+            yield k, v
+
+
+def sessions(logs, minima=10):
     sessions = {}
     for log in logs:
         ip = "%s %s" % (log['ip'], log['user-agent'][0]['string'])
         if ip not in sessions:
             sessions[ip] = Session(ip)
         sessions[ip].append(log)
-    for session in sessions.keys():
-        sessions[session].filter(minima=10)
-        if len(sessions[session]) == 0:
-            del sessions[session]
     sessions = sessions.items()
+    sessions = list(filter_session(sessions, minima))
     sessions.sort(lambda a, b: cmp(a[1], b[1]))
     return sessions
 
 if __name__ == "__main__":
     import sys
     with open(sys.argv[1], 'r') as f:
-        sessions = sessions(combined(f, user_agent=False, geo_ip=False))
-        print sessions[:-2]
+        s = sessions(combined(f, user_agent=False, geo_ip=False), minima=10)
+        print s[:-2]
