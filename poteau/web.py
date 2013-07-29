@@ -77,7 +77,9 @@ def combined(reader, user_agent=True, geo_ip=True):
                 ua = user_agent_parser.Parse(m.group(10))
                 ua['os']['family'] = unescape(ua['os']['family'])
                 ua['device']['family'] = unescape(ua['device']['family'])
-                log['user-agent'] = ua,
+                log['user-agent'] = ua
+            else:
+                log['user-agent'] = [ {'string': m.group(10)} ]
             if geo_ip:
                 geo = geo_ip(m.group(1))
                 log['country_name'] = unescape(geo['country_name']),
@@ -121,5 +123,5 @@ def sessions(logs):
 if __name__ == "__main__":
     import sys
     with open(sys.argv[1], 'r') as f:
-        sessions = sessions(combined(f, user_agent=True, geo_ip=False))
-        print sessions
+        sessions = sessions(combined(f, user_agent=False, geo_ip=False))
+        print sessions[:-2]
