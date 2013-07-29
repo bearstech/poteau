@@ -47,7 +47,7 @@ def geo_ip(ip):
 def intOrZero(a):
     try:
         return int(a)
-    except Exception as e:
+    except Exception:
         return 0
 
 
