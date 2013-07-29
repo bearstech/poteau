@@ -113,29 +113,35 @@ class Session(object):
     def __init__(self, key):
         self.ip = key
         self.ts = {}
-        self.length = 0
+        self._sum = 0
 
     def append(self, log):
         d = log['date']
         if d not in self.ts:
             self.ts[d] = 0
         self.ts[d] += 1
-        self.length += 1
+        self._sum += 1
 
     def filter(self, minima=2):
         for k, v in self.ts.items():
             if v < minima:
+                self._sum -= self.ts[k]
                 del self.ts[k]
-                self.length -= 1
+
+    def sum(self):
+        return self._sum
+
+    def max(self):
+        return max(self.ts.values())
 
     def __cmp__(self, other):
-        return cmp(self.length, other.length)
+        return cmp(self._sum, other._sum)
 
     def __repr__(self):
         return "<Session %s>" % self.ts
 
     def __len__(self):
-        return self.length
+        return len(self.ts)
 
 
 def filter_session(s, minima):
