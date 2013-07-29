@@ -109,13 +109,46 @@ def documents_from_combined(logs):
         }
 
 
+class Session(object):
+    def __init__(self, key):
+        self.ip = key
+        self.ts = {}
+        self.length = 0
+
+    def append(self, log):
+        d = log['date']
+        if d not in self.ts:
+            self.ts[d] = 0
+        self.ts[d] += 1
+        self.length += 1
+
+    def filter(self, minima=2):
+        for k, v in self.ts.items():
+            if v < minima:
+                del self.ts[k]
+                self.length -= 1
+
+    def __cmp__(self, other):
+        return cmp(self.length, other.length)
+
+    def __repr__(self):
+        return "<Session %s>" % self.ts
+
+    def __len__(self):
+        return self.length
+
+
 def sessions(logs):
     sessions = {}
     for log in logs:
         ip = "%s %s" % (log['ip'], log['user-agent'][0]['string'])
         if ip not in sessions:
-            sessions[ip] = 0
-        sessions[ip] += 1
+            sessions[ip] = Session(ip)
+        sessions[ip].append(log)
+    for session in sessions.keys():
+        sessions[session].filter(minima=10)
+        if len(sessions[session]) == 0:
+            del sessions[session]
     sessions = sessions.items()
     sessions.sort(lambda a, b: cmp(a[1], b[1]))
     return sessions
