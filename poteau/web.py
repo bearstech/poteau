@@ -79,7 +79,7 @@ def combined(reader, user_agent=True, geo_ip=True):
                 ua['device']['family'] = unescape(ua['device']['family'])
                 log['user-agent'] = ua
             else:
-                log['user-agent'] = [ {'string': m.group(10)} ]
+                log['user-agent'] = [{'string': m.group(10)}]
             if geo_ip:
                 geo = geo_ip(m.group(1))
                 log['country_name'] = unescape(geo['country_name']),
