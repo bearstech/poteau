@@ -45,9 +45,10 @@ def geo_ip(ip):
 
 
 def intOrZero(a):
-    if a == '-':
+    try:
+        return int(a)
+    except Exception as e:
         return 0
-    return int(a)
 
 
 def unescape(txt):
