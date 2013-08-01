@@ -4,6 +4,7 @@
 # TODO search engine query from referer
 import re
 import os
+import time
 from urlparse import urlparse, parse_qs
 
 os.environ["UA_PARSER_YAML"] = "./regexes.yaml"
@@ -17,6 +18,9 @@ RE_COMMON = re.compile(r'(.*?) - (.*?) \[(.*?) [+-]\d{4}\] "(.*?) (.*?) (.*?)" (
 RE_COMBINED = re.compile(r'(.*?) - (.*?) \[(.*?) [+-]\d{4}\] "(.*?) (.*?) (.*?)" (\d{3}) (.*?) "([^"]*)" "([^"]*)"', re.U)
 RE_DATE = re.compile(r'(\d+)/(\w{3})/(\d+):(\d+:\d+:\d+)', re.U)
 
+MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 
 def parse_date(src):
     """
@@ -24,8 +28,6 @@ def parse_date(src):
 2009-11-15T14:12:12
     """
     m = RE_DATE.match(src)
-    MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     resp = '%(year)s-%(month)02d-%(day)02dT%(hms)s' % {
         'year': m.group(3),
         'month': MONTH.index(m.group(2)) + 1,
@@ -33,6 +35,10 @@ def parse_date(src):
         'hms': m.group(4)
     }
     return resp
+
+
+def parse_time(src):
+    return int(time.mktime(time.strptime(src, "%d/%b/%Y:%H:%M:%S")))
 
 GEOIP = None
 
@@ -57,14 +63,14 @@ def unescape(txt):
     return "_".join(txt.split(" "))
 
 
-def combined(reader, user_agent=True, geo_ip=True):
+def combined(reader, user_agent=True, geo_ip=True, date=parse_date):
     for line in reader:
         m = RE_COMBINED.match(line)
         if m is not None:
             log = {
                 'ip': m.group(1),
                 'user': m.group(2),
-                'date': parse_date(m.group(3)),
+                'date': date(m.group(3)),
                 'command': m.group(4),
                 'url': m.group(5),
                 'http': m.group(6),
@@ -109,6 +115,10 @@ def documents_from_combined(logs):
         }
 
 
+def ts_to_date(ts):
+    return time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(ts))
+
+
 class Session(object):
     def __init__(self, key):
         self.ip = key
@@ -128,8 +138,35 @@ class Session(object):
                 self._sum -= self.ts[k]
                 del self.ts[k]
 
+    def to_es(self, source='localhost'):
+        d = self.ts.keys()
+        d.sort()
+        #2009-11-1'T14:12:12
+        first = ts_to_date(d[0])
+        age = d[-1] - d[0]
+        ip, ua = self.ip
+        return {'@type': 'session',
+                '@timestamp': first,
+                '@message': '',
+                '@source': source,
+                '@fields': {
+                    'sum': self.sum(),
+                    'max': self.max(),
+                    'size': len(self),
+                    'med': self.median(),
+                    'age': age,
+                    'ip': ip,
+                    'ua': ua
+                    }
+                }
+
     def sum(self):
         return self._sum
+
+    def median(self):
+        v = self.ts.values()
+        v.sort()
+        return v[int(len(v) / 2)]
 
     def max(self):
         return max(self.ts.values())
@@ -144,6 +181,10 @@ class Session(object):
         return len(self.ts)
 
 
+class Sessions(object):
+    def __init__(self, time_delta):
+        self.sessions = {}
+
 def filter_session(s, minima):
     for k, v in s:
         v.filter(minima)
@@ -154,17 +195,19 @@ def filter_session(s, minima):
 def sessions(logs, minima=10):
     sessions = {}
     for log in logs:
-        ip = "%s %s" % (log['ip'], log['user-agent'][0]['string'])
+        ip = (log['ip'], log['user-agent'][0]['string'])
         if ip not in sessions:
             sessions[ip] = Session(ip)
         sessions[ip].append(log)
     sessions = sessions.items()
-    sessions = list(filter_session(sessions, minima))
-    sessions.sort(lambda a, b: cmp(a[1], b[1]))
+    if minima:
+        sessions = list(filter_session(sessions, minima))
     return sessions
 
 if __name__ == "__main__":
     import sys
     with open(sys.argv[1], 'r') as f:
-        s = sessions(combined(f, user_agent=False, geo_ip=False), minima=10)
-        print s[:-2]
+        s = sessions(combined(f, user_agent=False, geo_ip=False,
+                              date=parse_time), minima=0)
+        for session in s:
+            print session[1].to_es()
