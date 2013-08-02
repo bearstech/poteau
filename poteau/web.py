@@ -158,7 +158,7 @@ class Session(object):
         if geo:
             log['country_name'] = unescape(geo['country_name']),
             log['country_code'] = geo['country_code'],
-            log['city'] = geo['city'],
+            log['city'] = unescape(geo['city']),
             log['geo'] = [geo['latitude'], geo['longitude']]
         ua = user_agent_parser.Parse(user_agent)
         ua['os']['family'] = unescape(ua['os']['family'])
@@ -218,6 +218,20 @@ def sessions(logs, max_age=900):
         yield session
 
 
+def asset_filter(logs):
+    for log in logs:
+        if log['command'] != 'GET':
+            yield log
+            continue
+        u = urlparse(log['url'])
+        uu = u.path.split('.')
+        if len(uu) == 1:
+            yield log
+            continue
+        if uu[-1] not in ['css', 'js', 'ico', 'woff', 'png', 'gif', 'jpg']:
+            yield log
+
+
 def documents_from_session(sessions):
     for session in sessions:
         yield session.to_es()
@@ -233,8 +247,8 @@ if __name__ == "__main__":
         es = ElasticSearch(sys.argv[2], timeout=240, max_retries=10)
         k = Kibana(es)
     with open(sys.argv[1], 'r') as f:
-        s = sessions(combined(f, user_agent=False, geo_ip=False,
-                              date=parse_time))
+        s = sessions(asset_filter(combined(f, user_agent=False, geo_ip=False,
+                              date=parse_time)))
         if idx:
             for day, size in k.index_documents('session', documents_from_session(s)):
                 print("[%s] #%i" % (day, size))
