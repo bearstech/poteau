@@ -124,9 +124,11 @@ class Session(object):
         self.ip = key
         self.ts = {}
         self._sum = 0
+        self.last = None
 
     def append(self, log):
         d = log['date']
+        self.last = d
         if d not in self.ts:
             self.ts[d] = 0
         self.ts[d] += 1
@@ -144,20 +146,29 @@ class Session(object):
         #2009-11-1'T14:12:12
         first = ts_to_date(d[0])
         age = d[-1] - d[0]
-        ip, ua = self.ip
+        ip, user_agent = self.ip
+        log = {'sum': self.sum(),
+               'max': self.max(),
+               'size': len(self),
+               'med': self.median(),
+               'age': age,
+               'ip': ip,
+               }
+        geo = geo_ip(ip)
+        if geo:
+            log['country_name'] = unescape(geo['country_name']),
+            log['country_code'] = geo['country_code'],
+            log['city'] = geo['city'],
+            log['geo'] = [geo['latitude'], geo['longitude']]
+        ua = user_agent_parser.Parse(user_agent)
+        ua['os']['family'] = unescape(ua['os']['family'])
+        ua['device']['family'] = unescape(ua['device']['family'])
+        log['user-agent'] = ua
         return {'@type': 'session',
                 '@timestamp': first,
                 '@message': '',
                 '@source': source,
-                '@fields': {
-                    'sum': self.sum(),
-                    'max': self.max(),
-                    'size': len(self),
-                    'med': self.median(),
-                    'age': age,
-                    'ip': ip,
-                    'ua': ua
-                    }
+                '@fields': log
                 }
 
     def sum(self):
@@ -185,6 +196,7 @@ class Sessions(object):
     def __init__(self, time_delta):
         self.sessions = {}
 
+
 def filter_session(s, minima):
     for k, v in s:
         v.filter(minima)
@@ -192,22 +204,40 @@ def filter_session(s, minima):
             yield k, v
 
 
-def sessions(logs, minima=10):
+def sessions(logs, max_age=900):
     sessions = {}
     for log in logs:
-        ip = (log['ip'], log['user-agent'][0]['string'])
-        if ip not in sessions:
-            sessions[ip] = Session(ip)
-        sessions[ip].append(log)
-    sessions = sessions.items()
-    if minima:
-        sessions = list(filter_session(sessions, minima))
-    return sessions
+        key = (log['ip'], log['user-agent'][0]['string'])
+        if key not in sessions:
+            sessions[key] = Session(key)
+        elif (log['date'] - sessions[key].last) > max_age:
+            yield sessions[key]
+            sessions[key] = Session(key)
+        sessions[key].append(log)
+    for session in sessions.values():
+        yield session
+
+
+def documents_from_session(sessions):
+    for session in sessions:
+        yield session.to_es()
+
 
 if __name__ == "__main__":
     import sys
+    from poteau import Kibana
+    from pyelasticsearch import ElasticSearch
+
+    idx = len(sys.argv) > 2
+    if idx:
+        es = ElasticSearch(sys.argv[2], timeout=240, max_retries=10)
+        k = Kibana(es)
     with open(sys.argv[1], 'r') as f:
         s = sessions(combined(f, user_agent=False, geo_ip=False,
-                              date=parse_time), minima=0)
-        for session in s:
-            print session[1].to_es()
+                              date=parse_time))
+        if idx:
+            for day, size in k.index_documents('session', documents_from_session(s)):
+                print("[%s] #%i" % (day, size))
+        else:
+            for d in documents_from_session(s):
+                print d
