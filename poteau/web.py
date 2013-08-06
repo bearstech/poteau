@@ -95,7 +95,7 @@ def combined(reader, user_agent=True, geo=True, date=parse_date):
             u = urlparse(m.group(5))
             uu = u.path.split('.')
             if len(uu) == 1:
-                log['extension'] = ''
+                log['extension'] = 'none'
             else:
                 log['extension'] = uu[-1]
             if user_agent:
