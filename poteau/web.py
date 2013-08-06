@@ -2,6 +2,8 @@
 
 # TODO domain referer
 # TODO search engine query from referer
+# TODO Better spider detection, with name
+# TODO Detect monitoring
 import re
 import os
 import time
@@ -63,7 +65,18 @@ def unescape(txt):
     return "_".join(txt.split(" "))
 
 
-def combined(reader, user_agent=True, geo_ip=True, date=parse_date):
+UA_CACHE = {}
+
+
+def ua_parse(txt):
+    if txt in UA_CACHE:
+        return UA_CACHE[txt]
+    ua = user_agent_parser.Parse(txt)
+    UA_CACHE[txt] = ua
+    return ua
+
+
+def combined(reader, user_agent=True, geo=True, date=parse_date):
     for line in reader:
         m = RE_COMBINED.match(line)
         if m is not None:
@@ -80,18 +93,19 @@ def combined(reader, user_agent=True, geo_ip=True, date=parse_date):
                 'raw': line,
             }
             if user_agent:
-                ua = user_agent_parser.Parse(m.group(10))
+                ua = ua_parse(m.group(10))
                 ua['os']['family'] = unescape(ua['os']['family'])
                 ua['device']['family'] = unescape(ua['device']['family'])
                 log['user-agent'] = ua
             else:
                 log['user-agent'] = [{'string': m.group(10)}]
-            if geo_ip:
+            if geo:
                 geo = geo_ip(m.group(1))
-                log['country_name'] = unescape(geo['country_name']),
-                log['country_code'] = geo['country_code'],
-                log['city'] = geo['city'],
-                log['geo'] = [geo['latitude'], geo['longitude']]
+                if geo:
+                    log['country_name'] = unescape(geo['country_name']),
+                    log['country_code'] = geo['country_code'],
+                    log['city'] = geo['city'],
+                    log['geo'] = [geo['latitude'], geo['longitude']]
             ref = urlparse(m.group(9))
             log['referer_domain'] = ref.netloc
             query = None
@@ -140,7 +154,7 @@ class Session(object):
                 self._sum -= self.ts[k]
                 del self.ts[k]
 
-    def to_es(self, source='localhost'):
+    def to_es(self, source="localhost"):
         d = self.ts.keys()
         d.sort()
         #2009-11-1'T14:12:12
@@ -232,9 +246,9 @@ def asset_filter(logs):
             yield log
 
 
-def documents_from_session(sessions):
+def documents_from_session(sessions, domain=""):
     for session in sessions:
-        yield session.to_es()
+        yield session.to_es(source=domain)
 
 
 if __name__ == "__main__":
@@ -246,12 +260,31 @@ if __name__ == "__main__":
     if idx:
         es = ElasticSearch(sys.argv[2], timeout=240, max_retries=10)
         k = Kibana(es)
+
     with open(sys.argv[1], 'r') as f:
-        s = sessions(asset_filter(combined(f, user_agent=False, geo_ip=False,
-                              date=parse_time)))
         if idx:
-            for day, size in k.index_documents('session', documents_from_session(s)):
+            for day, size in k.index_documents('page',
+                                                documents_from_combined(combined(f, user_agent=True, geo=True, date=parse_date))):
                 print("[%s] #%i" % (day, size))
         else:
-            for d in documents_from_session(s):
-                print d
+            cpt = 0
+            for doc in documents_from_combined(combined(f, user_agent=True, geo=True, date=parse_date)):
+                cpt += 1
+                if cpt == 10000:
+                    print len(UA_CACHE)
+                    break
+
+
+    #if len(sys.argv) > 2:
+        #domain = sys.argv[2]
+    #else:
+        #domain = ''
+    #with open(sys.argv[1], 'r') as f:
+        #s = sessions(asset_filter(combined(f, user_agent=False, geo_ip=False,
+                              #date=parse_time)))
+        #if idx:
+            #for day, size in k.index_documents('session', documents_from_session(s, domain=domain)):
+                #print("[%s] #%i" % (day, size))
+        #else:
+            #for d in documents_from_session(s, domain=domain):
+                #print d
