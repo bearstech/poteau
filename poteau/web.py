@@ -92,6 +92,12 @@ def combined(reader, user_agent=True, geo=True, date=parse_date):
                 'referer': m.group(9),
                 'raw': line,
             }
+            u = urlparse(m.group(5))
+            uu = u.path.split('.')
+            if len(uu) == 1:
+                log['extension'] = ''
+            else:
+                log['extension'] = uu[-1]
             if user_agent:
                 ua = ua_parse(m.group(10))
                 ua['os']['family'] = unescape(ua['os']['family'])
@@ -101,10 +107,10 @@ def combined(reader, user_agent=True, geo=True, date=parse_date):
                 log['user-agent'] = [{'string': m.group(10)}]
             if geo:
                 geo = geo_ip(m.group(1))
-                if geo:
+                if geo is not None:
                     log['country_name'] = unescape(geo['country_name']),
                     log['country_code'] = geo['country_code'],
-                    log['city'] = geo['city'],
+                    log['city'] = unescape(geo['city']),
                     log['geo'] = [geo['latitude'], geo['longitude']]
             ref = urlparse(m.group(9))
             log['referer_domain'] = ref.netloc
@@ -269,8 +275,9 @@ if __name__ == "__main__":
         else:
             cpt = 0
             for doc in documents_from_combined(combined(f, user_agent=True, geo=True, date=parse_date)):
+                print doc['@fields']['extension']
                 cpt += 1
-                if cpt == 10000:
+                if cpt == 100:
                     print len(UA_CACHE)
                     break
 
