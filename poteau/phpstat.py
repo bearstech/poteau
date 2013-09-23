@@ -1,6 +1,7 @@
 import re
 
-from web import geo_ip, MONTH
+from web import geo_ip, MONTH, unescape
+from urlparse import urlparse, parse_qs
 
 PATTERN = re.compile(r"\[(.*?)\] \[(.*?)\] \[(.*?)\] .*? stderr: phptop (.*?) time:(.*?) user:(.*?) sys:(.*?) mem:(\d+)")
 
@@ -15,20 +16,60 @@ def parse_date(txt):
         'time': m[3]
     }
 
-if __name__ == "__main__":
-    import sys
-    for line in sys.stdin:
+
+def phpstat(raw):
+    for line in raw:
         m = PATTERN.match(line)
         if m is None:
             continue
         date = m.group(1)
-        level = m.group(2)
         source = m.group(3)
-        ip = source.split(' ')[-1]
+        log = {
+            'ip': source.split(' ')[-1],
+            'level': m.group(2),
+            'time': float(m.group(5)),
+            'user': float(m.group(6)),
+            'sys': float(m.group(7)),
+            'mem': int(m.group(8)),
+        }
         url = m.group(4)
-        time = float(m.group(5))
-        user = float(m.group(6))
-        sys = m.group(7)
-        mem = m.group(8)
-        print parse_date(date), time, user, sys, mem, url
-        print geo_ip(ip)
+        uu = urlparse(url)
+        log['domain'] = uu.netloc
+        log['path'] = uu.path
+        log['query'] = uu.query
+        geo = geo_ip(log['ip'])
+        if geo is not None:
+            log['country_name'] = unescape(geo['country_name']),
+            log['country_code'] = geo['country_code'],
+            log['city'] = unescape(geo['city']),
+            log['geo'] = [geo['latitude'], geo['longitude']]
+        #print parse_date(date), time, user, sys, mem, url
+        #print geo_ip(ip)
+        yield {
+            'date': parse_date(date),
+            'raw': line,
+            'fields': log
+        }
+
+
+def documents_from_phpstat(stats):
+    for stat in stats:
+        yield {
+            '@source': 'stuff://',
+            '@type': 'combined',
+            '@tags': [],
+            '@fields': stat['fields'],
+            '@timestamp': stat['date'],
+            '@message': stat['raw']
+        }
+
+
+if __name__ == "__main__":
+    import sys
+    from poteau import Kibana
+    from pyelasticsearch import ElasticSearch
+    es = ElasticSearch(sys.argv[1], timeout=240, max_retries=10)
+    k = Kibana(es)
+    for day, size in k.index_documents('page',
+                                       documents_from_phpstat(phpstat(sys.stdin))):
+        print("[%s] #%i" % (day, size))
