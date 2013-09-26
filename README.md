@@ -39,6 +39,11 @@ You need an Elasticsearch and a Kibana, somewhere.
 
     cat mysql-slow.log | python -m poteau.mysql http://localhost:9200/
 
+### [PhpTop](https://github.com/bearstech/phptop)
+
+    zcat error.log.1.gz | python -m poteau.phptop http://localhost:9200/
+
+
 Licence
 -------
 
