@@ -67,9 +67,18 @@ def documents_from_phpstat(stats):
 if __name__ == "__main__":
     import sys
     from poteau import Kibana
+    from logging import DEBUG, basicConfig
+    basicConfig(filename='poteau.log', level=DEBUG)
     from pyelasticsearch import ElasticSearch
+
     es = ElasticSearch(sys.argv[1], timeout=240, max_retries=10)
     k = Kibana(es)
+    k.mapping['@fields']['properties']['path'] = {
+        'type': 'string',
+        'analyzer': 'path'}
+    k.mapping['@fields']['properties']['query'] = {'type': 'string'}
+    k.mapping['@fields']['properties']['ip'] = {'type': 'ip'}
+    k.mapping['@fields']['properties']['geo'] = {'type': 'geo_point'}
     for day, size in k.index_documents('page',
                                        documents_from_phpstat(phpstat(sys.stdin))):
         print("[%s] #%i" % (day, size))
